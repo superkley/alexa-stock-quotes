@@ -1,0 +1,12 @@
+RequestIntent {stock}
+RequestIntent {stock} {suffix}
+RequestIntent Kurs von {stock}
+RequestIntent Kurs von {stock} {suffix}
+RequestIntent Aktie {stock}
+RequestIntent Aktie {stock} {suffix}
+RequestIntent Aktienkurs von {stock}
+RequestIntent Aktienkurs von {stock} {suffix}
+RequestIntent Sag mir den Kurs von {stock}
+RequestIntent Sag mir den Kurs von {stock} {suffix}
+RequestIntent Welcher Kurs hat {stock}
+RequestIntent Welcher Kurs hat {stock} {suffix}

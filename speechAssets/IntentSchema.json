@@ -1,0 +1,32 @@
+{
+  "intents": [
+    {
+      "slots": [
+        {
+          "name": "stock",
+          "type": "CUSTOM_LITERAL"
+        },
+        {
+          "name": "suffix",
+          "type": "SUFFIX_LITERAL"
+        }
+      ],
+      "intent": "RequestIntent"
+    },
+    {
+      "intent": "AMAZON.YesIntent"
+    },
+    {
+      "intent": "AMAZON.NoIntent"
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    },
+    {
+      "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "AMAZON.CancelIntent"
+    }
+  ]
+}
