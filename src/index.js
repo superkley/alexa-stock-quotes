@@ -12,7 +12,8 @@ var languageStrings = {
     'de-DE': {
         'translation': {
             'TITLE': "Aktuellen Aktienkurs Abfragen",
-            'WELCOME_LAUNCH': "Willkommen in Aktienkurs! Nenne mir bitte das Kürzel oder den Namen der Aktie",
+            'WELCOME_LAUNCH': "Hallo! ",
+            'WELCOME_HELP': 'Nenne mir bitte das Kürzel oder den Namen der Aktie',
             'REQUEST_MESSAGE': "Sage mir bitte das Kürzel oder den Namen der Aktie",
             'HELP_MESSAGE': "Ich kenne die aktuellen Aktienkurse aus dem Xetra System. Von welche Aktie willst du den Kurs wissen?"
         }
@@ -711,7 +712,7 @@ const stocks = [{
     names: ["fabasoft"]
 }, {
     key: "rtm3",
-    names: ["finanzhausrothmann"]
+    names: ["finanzhausrothmann", "rothmann"]
 }, {
     key: "fla",
     names: ["flatex"]
@@ -1410,7 +1411,7 @@ exports.handler = function (event, context, callback) {
 
     alexa.resources = languageStrings;
 
-    // alexa.appId = 'amzn1.ask.skill.bf2c3de4-8732-4874-b746-6955c2caed06';
+    alexa.appId = 'amzn1.ask.skill.73c87914-b51d-40b3-8b71-b8ff93f8a640';
 
     alexa.registerHandlers(
         requestHandler
@@ -1421,8 +1422,16 @@ exports.handler = function (event, context, callback) {
 
 var requestHandler = {
     'NewSession': function () {
-        console.log("> start new session");
-        this.emit(':ask', this.t("WELCOME_LAUNCH"), this.t("REQUEST_MESSAGE"));
+        console.log("> start new session");        
+        alexaApp = this;
+        symbol = parseRequest(this.event.request);        
+        if ('NONE' == symbol) {
+            this.emit(':ask', this.t("WELCOME_LAUNCH") + this.t("WELCOME_HELP") , this.t("REQUEST_MESSAGE"));
+        } else if ('UNKNOWN' == symbol) {
+            this.emit(':ask', "Kurs von " + this.event.request.intent.slots.stock.value + " konnte nicht ermittelt werden. Versuch mit einer anderen Aktie?", this.t("REQUEST_MESSAGE"));
+        } else {
+            tellPrice(alexaApp, symbol, false);
+        }
     },
     "AMAZON.HelpIntent": function () {
         console.log("> help intent");
@@ -1439,31 +1448,13 @@ var requestHandler = {
     'RequestIntent': function () {
         console.log("> request intent");
         alexaApp = this;
-        var symbol = 'UNKOWN';
-        if (!this.event.request.intent.slots.stock || this.event.request.intent.slots.stock.value === '') {
+        symbol = parseRequest(this.event.request);        
+        if ('NONE' == symbol) {
             this.emit(':ask', this.t("HELP_MESSAGE"), this.t("REQUEST_MESSAGE"));
-        } else {
-            var stockVal = normalizeName(this.event.request.intent.slots.stock.value);
-            symbol = getSymbol(stockVal);
-            console.log('> symbol=' + symbol + ' (input=' + stockVal + ')');
-        }
-        if ('UNKNOWN' == symbol) {
+        } else if ('UNKNOWN' == symbol) {
             this.emit(':ask', "Kurs von " + this.event.request.intent.slots.stock.value + " konnte nicht ermittelt werden. Versuch mit einer anderen Aktie?", this.t("REQUEST_MESSAGE"));
         } else {
-            getPrice(symbol, function (rsp) {
-                var rspStr = rsp.toString().trim();
-                console.log("BODY: " + rspStr);
-                var info = rspStr.split(',');
-                if (info.length == 2) {
-                    var price = info[1].replace('.', ',').trim();
-                    var name = info[0].replace(/\"/g, '').trim();
-                    var cardText = '\n ' + name + ' (' + symbol + '): ' + price +'€';
-                    console.log("> card: " + cardText);
-                    alexaApp.emit(':askWithCard',  name + ' hat einen aktuellen Kurs von ' + price + ' Euro pro Aktie. Weiter?', 'Nächste Aktie?', 'Aktueller Kurs (Keine Gewähr)', cardText);
-                } else {
-                    alexaApp.emit(':ask', "Kurs von " + this.event.request.intent.slots.stock.value + " konnte nicht ermittelt werden. Versuch mit einer anderen Aktie?", this.t("REQUEST_MESSAGE"));
-                }
-            });
+            tellPrice(alexaApp, symbol, true);
         }
     },
     'AMAZON.YesIntent': function () {
@@ -1480,19 +1471,58 @@ var requestHandler = {
     }
 };
 
+function tellPrice(alexaApp, symbol, askNext) {
+    getPrice(symbol, function (rsp) {
+        var rspStr = rsp.toString().trim();
+        console.log("BODY: " + rspStr);
+        var info = rspStr.split(',');
+        var price = '';
+        var name = '';
+        if (info.length == 2) {
+            price = info[1].replace('.', ',').trim();
+            name = info[0].replace(/\"/g, '').trim();
+        }
+        if (name.length > 0 && 'N/A' != name && 'N/A' != price) {
+            var cardText = '\n ' + name + ' (' + symbol + '): ' + price +'€';
+            console.log("> card: " + cardText);
+            if (askNext) {
+                alexaApp.emit(':askWithCard',  name + ' hat einen aktuellen Kurs von ' + price + ' Euro pro Aktie. Weiter?', 'Nächste Aktie?', 'Aktueller Kurs (Keine Gewähr)', cardText);
+            } else {
+                alexaApp.emit(':tellWithCard',  alexaApp.t("WELCOME_LAUNCH") + name + ' hat einen aktuellen Kurs von ' + price + ' Euro pro Aktie.', 'Aktueller Kurs (Keine Gewähr)', cardText);
+            }
+        } else {
+            alexaApp.emit(':ask', "Kurs von " + alexaApp.event.request.intent.slots.stock.value + " ist aktuell nicht verfügbar. Versuch mit einer anderen Aktie?", alexaApp.t("REQUEST_MESSAGE"));
+        }
+    });
+}
+
+function parseRequest(req) {
+    var symbol = 'UNKOWN';
+    if (!req.intent || !req.intent.slots || !req.intent.slots.stock || req.intent.slots.stock.value === '') {
+        console.log('> symbol=NONE');
+        symbol = 'NONE';
+    } else {
+        var stockVal = normalizeName(req.intent.slots.stock.value);
+        symbol = getSymbol(stockVal);
+        console.log('> symbol=' + symbol + ' (input=' + stockVal + ')');
+    }
+    return symbol;
+}
+
 function normalizeName(str) {
     return str.toLowerCase().replace(/\s/g, '').replace('ß', 'ss').replace('ü', 'ue').replace('ä', 'ae').replace('ö', 'oe');
 }
 
 function getSymbol(str) {
+    var stock = '';
     for (var i = 0; i < stocks.length; i++) {
-        var stock = stocks[i];
+        stock = stocks[i];
         if (stock.key == str) {
             return stock.key;
         }
     }
     for (var i = 0; i < stocks.length; i++) {
-        var stock = stocks[i];
+        stock = stocks[i];
         var names = stock.names;
         for (var j = 0; j < names.length; j++) {
             var n = names[j];

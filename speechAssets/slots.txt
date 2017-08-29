@@ -240,7 +240,7 @@ E V N
 E V T
 F A M 1
 F A A
-R T M 3
+R T M 4 4 4
 F L A
 F R S
 F E V
@@ -718,6 +718,7 @@ Evn
 F A M E 
 Fabasoft
 Finanzhaus Rothmann
+Rothmann
 Flatex
 Foris
 FORTEC Elektronik
